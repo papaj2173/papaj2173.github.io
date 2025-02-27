@@ -26,7 +26,7 @@
     const username = 'papaj2173';
     const repo = 'input-to-file';  // Replace with your repository name
     const filePath = 'data.txt';   // File where the data will be saved
-    const accessToken = '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';  // GitHub Personal Access Token
+    const accessToken = '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';  // GitHub Personal Access Token
 
     // Form submission event handler
     document.getElementById('dataForm').addEventListener('submit', function(event) {
@@ -44,8 +44,8 @@
     async function saveToGitHub(data) {
       const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${filePath}`;
       
-      // Get the current content of the file to get the SHA for updating
       try {
+        // Step 1: Get the current content of the file (if it exists) to get the SHA for updating
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
@@ -56,10 +56,10 @@
         let sha = '';
         if (response.ok) {
           const fileData = await response.json();
-          sha = fileData.sha;
+          sha = fileData.sha;  // The SHA of the existing file, needed to update it
         }
 
-        // Now create or update the file on GitHub
+        // Step 2: Create or update the file
         const updateResponse = await fetch(apiUrl, {
           method: 'PUT',
           headers: {
@@ -68,19 +68,22 @@
           },
           body: JSON.stringify({
             message: 'Update data.txt with new inputs',
-            content: btoa(data),  // Convert the data to Base64
-            sha: sha,  // If the file exists, update it with the SHA
+            content: btoa(data),  // Convert the data to Base64 encoding
+            sha: sha,  // If the file exists, provide the SHA to update it
           }),
         });
 
         const status = await updateResponse.json();
+
         if (updateResponse.ok) {
           document.getElementById('status').textContent = 'Data saved successfully!';
         } else {
-          document.getElementById('status').textContent = `Error: ${status.message}`;
+          console.error('GitHub API error:', status);
+          document.getElementById('status').textContent = `Error: ${status.message || 'Unknown error'}`;
         }
 
       } catch (error) {
+        console.error('Error:', error);
         document.getElementById('status').textContent = `Error: ${error.message}`;
       }
     }
