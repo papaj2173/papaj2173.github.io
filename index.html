@@ -23,10 +23,11 @@
 
   <script>
     // GitHub API info
-    const username = 'papaj2173';
-    const repo = 'input-to-file';  // Replace with your repository name
-    const filePath = 'data.txt';   // File where the data will be saved
-    const accessToken = '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';  // GitHub Personal Access Token
+    const username = 'papaj2173';  // GitHub username
+    const repo = 'input-to-file';  // Repository name
+    const filePath = 'data.txt';   // The file where we want to store the data
+    const branch = 'main';         // The branch where the file is located
+    const accessToken = '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';  // GitHub Personal Access Token
 
     // Form submission event handler
     document.getElementById('dataForm').addEventListener('submit', function(event) {
@@ -43,7 +44,7 @@
     // Function to save data to GitHub
     async function saveToGitHub(data) {
       const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${filePath}`;
-      
+
       try {
         // Step 1: Get the current content of the file (if it exists) to get the SHA for updating
         const response = await fetch(apiUrl, {
@@ -53,13 +54,20 @@
           },
         });
 
+        if (!response.ok) {
+          const errorDetails = await response.json();
+          console.error('GET request failed:', errorDetails);
+          document.getElementById('status').textContent = `Error during GET request: ${errorDetails.message}`;
+          return;
+        }
+
         let sha = '';
         if (response.ok) {
           const fileData = await response.json();
           sha = fileData.sha;  // The SHA of the existing file, needed to update it
         }
 
-        // Step 2: Create or update the file
+        // Step 2: Create or update the file in the repository
         const updateResponse = await fetch(apiUrl, {
           method: 'PUT',
           headers: {
@@ -67,19 +75,20 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            message: 'Update data.txt with new inputs',
+            message: 'Update data.txt with new inputs',  // Commit message
             content: btoa(data),  // Convert the data to Base64 encoding
             sha: sha,  // If the file exists, provide the SHA to update it
+            branch: branch,  // Make sure it's on the correct branch
           }),
         });
 
-        const status = await updateResponse.json();
+        const updateStatus = await updateResponse.json();
 
-        if (updateResponse.ok) {
-          document.getElementById('status').textContent = 'Data saved successfully!';
+        if (!updateResponse.ok) {
+          console.error('PUT request failed:', updateStatus);
+          document.getElementById('status').textContent = `Error during PUT request: ${updateStatus.message || 'Unknown error'}`;
         } else {
-          console.error('GitHub API error:', status);
-          document.getElementById('status').textContent = `Error: ${status.message || 'Unknown error'}`;
+          document.getElementById('status').textContent = 'Data saved successfully!';
         }
 
       } catch (error) {
