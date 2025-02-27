@@ -3,82 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Google Sheets Form</title>
+  <title>Save Data to GitHub</title>
 </head>
 <body>
-  <h2>Submit Form to Google Sheets</h2>
+  <h1>Save Data to GitHub</h1>
   
+  <!-- Input fields for user data -->
   <form id="dataForm">
-    <label for="name">Name:</label><br>
-    <input type="text" id="name" name="name" required><br><br>
+    <label for="input1">Input 1:</label><br>
+    <input type="text" id="input1" name="input1" required><br><br>
     
-    <label for="email">Email:</label><br>
-    <input type="email" id="email" name="email" required><br><br>
-
-    <input type="submit" value="Submit">
+    <label for="input2">Input 2:</label><br>
+    <input type="text" id="input2" name="input2" required><br><br>
+    
+    <input type="submit" value="Save Data">
   </form>
 
-  <script src="https://apis.google.com/js/api.js"></script>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  
+  <p id="status"></p>
+
   <script>
-    // Client ID from Google Cloud
-    const CLIENT_ID = 'YOUR_CLIENT_ID';
-    const API_KEY = 'YOUR_API_KEY';
-    const SPREADSHEET_ID = 'YOUR_SHEET_ID';
+    // GitHub API info
+    const username = 'your-github-username';
+    const repo = 'input-to-file';  // Replace with your repository name
+    const filePath = 'data.txt';   // File where the data will be saved
+    const accessToken = 'your-personal-access-token';  // GitHub Personal Access Token
 
-    let gapiLoaded = false;
-
-    function handleClientLoad() {
-      gapi.load('client:auth2', initClient);
-    }
-
-    function initClient() {
-      gapi.client.init({
-        apiKey: API_KEY,
-        clientId: CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/spreadsheets',
-      }).then(function() {
-        gapiLoaded = true;
-      });
-    }
-
-    // Function to submit form data to Google Sheets
-    $('#dataForm').on('submit', function(event) {
+    // Form submission event handler
+    document.getElementById('dataForm').addEventListener('submit', function(event) {
       event.preventDefault();
 
-      if (!gapiLoaded) {
-        alert('Google API is not loaded yet!');
-        return;
-      }
+      const input1 = document.getElementById('input1').value;
+      const input2 = document.getElementById('input2').value;
 
-      const name = $('#name').val();
-      const email = $('#email').val();
-      const values = [
-        [name, email],
-      ];
+      const dataToSave = `Input 1: ${input1}\nInput 2: ${input2}\n`;
 
-      const body = {
-        values: values,
-      };
-
-      const request = gapi.client.sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'Sheet1!A:B',
-        valueInputOption: 'RAW',
-        resource: body,
-      });
-
-      request.then(function(response) {
-        alert('Data successfully added to Google Sheets!');
-      }, function(error) {
-        console.error(error);
-        alert('Error while saving data.');
-      });
+      saveToGitHub(dataToSave);
     });
 
-    // Load the API client and auth2 library
-    window.onload = handleClientLoad;
+    // Function to save data to GitHub
+    async function saveToGitHub(data) {
+      const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${filePath}`;
+      
+      // Get the current content of the file to get the SHA for updating
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `token ${accessToken}`,
+          },
+        });
+
+        let sha = '';
+        if (response.ok) {
+          const fileData = await response.json();
+          sha = fileData.sha;
+        }
+
+        // Now create or update the file on GitHub
+        const updateResponse = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: 'Update data.txt with new inputs',
+            content: btoa(data),  // Convert the data to Base64
+            sha: sha,  // If the file exists, update it with the SHA
+          }),
+        });
+
+        const status = await updateResponse.json();
+        if (updateResponse.ok) {
+          document.getElementById('status').textContent = 'Data saved successfully!';
+        } else {
+          document.getElementById('status').textContent = `Error: ${status.message}`;
+        }
+
+      } catch (error) {
+        document.getElementById('status').textContent = `Error: ${error.message}`;
+      }
+    }
   </script>
 </body>
 </html>
